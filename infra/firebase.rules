@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+
+    function isGestor() {
+      return isSignedIn() && role() == 'gestor';
+    }
+
+    function isSupervisor() {
+      return isSignedIn() && role() == 'supervisor';
+    }
+
+    function isTecnico() {
+      return isSignedIn() && role() == 'tecnico';
+    }
+
+    match /usuarios/{userId} {
+      allow read: if isAdmin() || isGestor() || request.auth.uid == userId;
+      allow write: if isAdmin();
+    }
+
+    match /usinas/{docId} {
+      allow read: if isAdmin() || isGestor() || isSupervisor() || isTecnico();
+      allow write: if isAdmin() || isGestor();
+    }
+
+    match /turbinas/{docId} {
+      allow read: if isAdmin() || isGestor() || isSupervisor() || isTecnico();
+      allow write: if isAdmin() || isGestor();
+    }
+
+    match /componentes/{docId} {
+      allow read: if isAdmin() || isGestor() || isSupervisor() || isTecnico();
+      allow write: if isAdmin() || isGestor();
+    }
+
+    match /checklists/{docId} {
+      allow read: if isAdmin() || isGestor() || isSupervisor() || isTecnico();
+      allow write: if isAdmin() || isGestor();
+    }
+
+    match /inspecoes/{docId} {
+      allow read: if isAdmin() || isGestor() || isSupervisor() || (isTecnico() && resource.data.tecnico_id == request.auth.uid);
+      allow create: if isAdmin() || isGestor() || isSupervisor();
+      allow update: if isAdmin()
+                    || isGestor()
+                    || (isSupervisor() && request.resource.data.status in ['finalizada', 'aprovada'])
+                    || (isTecnico() && resource.data.tecnico_id == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /logs_sistema/{docId} {
+      allow read: if isAdmin() || isGestor();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+  }
+}
